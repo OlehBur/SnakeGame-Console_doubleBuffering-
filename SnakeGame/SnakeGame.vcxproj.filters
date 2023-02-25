@@ -33,12 +33,4 @@
       <Filter>Resource Files</Filter>
     </Media>
   </ItemGroup>
-  <ItemGroup>
-    <Library Include="graphics.lib" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="graphics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
 </Project>

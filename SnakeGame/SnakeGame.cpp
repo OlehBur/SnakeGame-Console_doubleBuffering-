@@ -6,9 +6,6 @@
 #include <cstdlib>
 
 #pragma comment(lib,"Winmm.lib")
- 
-//#include "graphics.h"
-//#pragma comment(lib,"graphics.lib")
 
 using namespace std;
 
@@ -24,18 +21,20 @@ struct Point {
 };
 
 enum class eDir { Pause, Right, Left, Up, Down, Close };//вичеслення
-eDir dir;// , prevDir;
-//Course dir;
+eDir dir;
 double curPerc = 0;
-bool endGame = false, lose = false, isBoost, upLevel;
-int width = 30,
-height = 15,
-maxSize = (width - 2) * (height - 2),
-score = 0,
-prevlvlScore = 0,
-countBoost = 0,
-timerBoost = 0,
-lvlBoost = 0;
+bool endGame = false;
+bool lose = false;
+bool isBoost;
+bool upLevel;
+int width = 30;
+int height = 15;
+int maxSize = (width - 2) * (height - 2);
+int score = 0;
+int prevlvlScore = 0;
+int countBoost = 0;
+int timerBoost = 0;
+int lvlBoost = 0;
 Point head(0, 0), food(0, 0), boost(1, 1);
 Point* bodyParts = new Point[maxSize];
 int currentCountParts = 0;
@@ -106,10 +105,12 @@ void EndWindow(bool modeWin) {
     if (modeWin) {
         color = 11;
         resultTittle = "ВИ_ПЕРЕМОГЛИ!";
+        PlaySound(wonSong, NULL, SND_FILENAME | SND_ASYNC);
     }
     else {
         color = 12;
         resultTittle = "ГРУ-ЗАКІНЧЕНО";
+        PlaySound(loseSong, NULL, SND_FILENAME | SND_ASYNC);
     }
     MovConsole(0, 8);
     for (int i = 0; i < 115 + width; i++)
@@ -147,21 +148,8 @@ void EndWindow(bool modeWin) {
     for (int i = 0; i < 115 + width; i++)
         ColorConsoleSumbol(" ", color);
     ColorConsoleSumbol("\n", color);
-}
 
-void Start() {
-    if (bodyParts)
-        delete[] bodyParts;
-    currentCountParts = 0;
-    curPerc = 0;
-    prevlvlScore = score;
-    bodyParts = new Point[maxSize];
-    isBoost = false;
-    countBoost = 0;
-    //prevDir = eDir::Stop;
-    dir = eDir::Pause;
-    head = { width / 2 - 1, height / 2 - 1 };
-    food = { rand() % width, rand() % height };// Point(rand() % width, rand() % height);
+    system("pause");
 }
 
 void Vialize() {
@@ -335,6 +323,21 @@ void ButtonsCallback() {
         }
 }
 
+void BoostRandSpawn() {
+    boost = { -width / 4 + rand() % (width + width / 3), -height / 3 + rand() % (height + height / 3) };
+    for (int part = 0; part < currentCountParts; part++)
+        if (boost == bodyParts[part] || boost.y == 0 || boost.x == 0)
+            BoostRandSpawn();
+}
+
+void FoodRandomSpawn() {
+    food = { rand() % width, rand() % height };
+
+    for (int part = 0; part < currentCountParts; part++)
+        if (food == bodyParts[part])
+            FoodRandomSpawn();
+}
+
 int Reactions() {
     if (currentCountParts) {
         curPerc = (currentCountParts * 100) / 40;
@@ -355,31 +358,25 @@ int Reactions() {
     switch (dir)
     {
     case eDir::Left:
-        //if (prevDir != eDir::Right) {
         head.x--;
-        //    prevDir = eDir::Left;
-        //}
         break;
+
     case eDir::Right:
-        //if (prevDir != eDir::Left) {
         head.x++;
-        //    prevDir = eDir::Right;
-        //}
         break;
+
     case eDir::Down:
-        //if (prevDir != eDir::Up) {
         head.y++;
-        //    prevDir = eDir::Down;
-        //}
         break;
+
     case eDir::Up:
-        //if (prevDir != eDir::Down){
         head.y--;
-        //prevDir = eDir::Up;}
         break;
+
     case eDir::Close:
         exit(0);
         break;
+
     case eDir::Pause:
         return 0;
     }
@@ -394,9 +391,12 @@ int Reactions() {
         head.y = height - 1;
 
     for (int part = 0; part < currentCountParts; part++)
-        if (bodyParts[part] == head && !countBoost)
-            endGame=true;// lose = true;
-            
+        if (bodyParts[part] == head && !countBoost) {
+            endGame = true;
+            EndWindow(0);
+            return 0;
+        }
+
         else if (bodyParts[part] == head && countBoost)
             countBoost--;
 
@@ -404,41 +404,42 @@ int Reactions() {
         PlaySound(eatSong, NULL, SND_FILENAME | SND_ASYNC);
         currentCountParts++;
         score += 5 + lvlBoost;
-
-    reInit:
-        food = { rand() % width, rand() % height };
-
-        for (int part = 0; part < currentCountParts; part++)
-            if (food == bodyParts[part])
-                goto reInit;
+        FoodRandomSpawn();
         if (score % 100 == 0)
             PlaySound(upScoreSong, NULL, SND_FILENAME | SND_ASYNC);
     }
     if (boost == head) {
         countBoost++;
-        //isBoost = false;
-        //if (rand() % 5 == 4) {
-    reInit1:
-        boost = { -width / 4 + rand() % (width + width / 3), -height / 3 + rand() % (height + height / 3) };
-        for (int part = 0; part < currentCountParts; part++)
-            if (boost == bodyParts[part] || boost.y == 0 || boost.x == 0)
-                goto reInit1;
-        //}
+        BoostRandSpawn();
     }
     if (timerBoost > 50000) {
         isBoost = false;
         timerBoost = 0;
-        goto reInit1;
+        BoostRandSpawn();
     }
     return 1;
 }
 
+void Start() {
+    if (bodyParts)
+        delete[] bodyParts;
+    currentCountParts = 0;
+    curPerc = 0;
+    prevlvlScore = score;
+    bodyParts = new Point[maxSize];
+    isBoost = false;
+    countBoost = 0;
+    //prevDir = eDir::Stop;
+    dir = eDir::Pause;
+    head = { width / 2 - 1, height / 2 - 1 };
+    food = { rand() % width, rand() % height };// Point(rand() % width, rand() % height);
+}
+
 void Render()
-{
-    if (!endGame) {
+{ 
         if (upLevel) {
-            Start();
             EndWindow(1);
+            Start();
             if (_kbhit())
                 upLevel = false;
         }
@@ -447,15 +448,7 @@ void Render()
             Vialize();
             ButtonsCallback();
             Reactions();
-        }
-    }else {//if (lose) {
-            EndWindow(0);
-            PlaySound(loseSong, NULL, SND_FILENAME | SND_ASYNC);
-            //loslose = false;
-            //endGame = true;
-            system("pause");
-        //}
-    }
+        }    
 }
 
 int main()
@@ -467,22 +460,18 @@ int main()
     hBufferSecond = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
 
     Start();
-    
-    while (1)
+     
+    while (!endGame)
     {
         FlushMainBuffer();
-  
-        MovConsole(0, 0);  
-        /*setactivepage(page);
-      setvisualpage(1 - page);*/
+
+        MovConsole(0, 0);
+
         Render();
-       //cout << "test\n";
+
         SetConsoleActiveScreenBuffer(hBufferMain);//double buff
-        //page = 1-page;
-       // cout << "lol\n";
         swap(hBufferMain, hBufferSecond);
-       
     }
-    //SetConsoleActiveScreenBuffer(hBufferMain);
-   //system("pause");
+   
+    return 0;
 }
